@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bvantagelimited/freeradius_exporter/freeradius"
+	"github.com/globalreachtech/freeradius_exporter/freeradius"
 	"github.com/prometheus/client_golang/prometheus"
 	"layeh.com/radius"
 	"layeh.com/radius/rfc2869"
