@@ -15,6 +15,7 @@ import (
 
 	"github.com/bvantagelimited/freeradius_exporter/client"
 	"github.com/bvantagelimited/freeradius_exporter/collector"
+	"github.com/bvantagelimited/freeradius_exporter/radmin"
 )
 
 var version, commit, date string
@@ -31,6 +32,7 @@ func main() {
 	radiusAddr := fs.String("radius.address", "127.0.0.1:18121", "Address of FreeRADIUS status server [RADIUS_ADDRESS].")
 	homeServers := fs.String("radius.homeservers", "", "List of FreeRADIUS home servers to check, e.g. '172.28.1.2:1812,172.28.1.3:1812' [RADIUS_HOMESERVERS].")
 	radiusSecret := fs.String("radius.secret", "adminsecret", "FreeRADIUS client secret [RADIUS_SECRET].")
+	radiusCmdSocket := fs.String("radius.cmd_socket", "", "FreeRADIUS control socket [RADIUS_CMD_SOCKET].")
 
 	err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarNoPrefix(), ff.WithConfigFileFlag("config"), ff.WithConfigFileParser(ff.JSONParser))
 	if err != nil {
@@ -58,6 +60,10 @@ func main() {
 	}
 
 	registry.MustRegister(collector.NewFreeRADIUSCollector(radiusClient))
+
+	if *radiusCmdSocket != "" && *homeServers != "" {
+		registry.MustRegister(radmin.NewRAdminCollector(*radiusCmdSocket, hs))
+	}
 
 	http.Handle(*metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
