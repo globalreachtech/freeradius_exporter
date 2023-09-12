@@ -17,14 +17,14 @@ var elapsedRegex = regexp.MustCompile(`^elapsed\.(.+)\t(\d+)$`)
 // RAdminCollector type.
 type RAdminCollector struct {
 	mutex sync.Mutex
-	cmdArgs []string
+	socketFile string
 	hasServers bool
 }
 
 // NewRAdminCollector creates an RAdminCollector.
 func NewRAdminCollector(socketFile string, homeServers []string) *RAdminCollector {
-	// Build radmin command args
-	args := []string{"-f", socketFile, "-E"}
+	// Build radmin command input file
+	cmds := ""
 	hasServers := false
 
 	for _, hs := range homeServers {
@@ -32,12 +32,17 @@ func NewRAdminCollector(socketFile string, homeServers []string) *RAdminCollecto
 			continue
 		}
 		hsParts := strings.Split(hs, ":")
-		args = append(args, "-e", "stats home_server " + hsParts[0] + " " + hsParts[1])
+		cmds += "stats home_server " + hsParts[0] + " " + hsParts[1] + "\n"
 		hasServers = true
 	}
 
+	err := os.WriteFile("/opt/radmin_cmds", []byte(cmds), 0664)
+	if err != nil {
+		log.Println(err)
+	}
+
 	return &RAdminCollector{
-		cmdArgs: args,
+		socketFile: socketFile,
 		hasServers: hasServers,
 	}
 }
@@ -57,7 +62,7 @@ func (r *RAdminCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	// Execute radmin to collect stats from freeradius
-	radminOutput, cmdErr := exec.Command("/opt/sbin/radmin", r.cmdArgs...).CombinedOutput()
+	radminOutput, cmdErr := exec.Command("/opt/sbin/radmin", "-f", r.socketFile, "-E", "-i", "/opt/radmin_cmds").CombinedOutput()
 	if cmdErr != nil {
         log.Println("radmin error:", cmdErr)
 		log.Println(string(radminOutput))
